@@ -1,17 +1,17 @@
 import text_parsing_utils as tpu
 
 '''
-A boolean vector representing a review.
+A boolean vector representing a single text data point.
 '''
-class ReviewVector:
+class TextVector:
     '''
-    Creates a vector from a review.
-    text: review text
-    rating: rating from review
+    Creates a vector from some text.
+    text: text to generate vector from
+    category: category, or expected output
     wordIndicies: dictionary mapping words to indexes in all vectors.
     '''
-    def __init__(self, text, rating, wordIndicies):
-        self.rating = rating
+    def __init__(self, text, category, wordIndicies):
+        self.category = category
 
         self.vector = [False] * len(wordIndicies)
         words = tpu.splitIntoWords(text)
@@ -20,7 +20,7 @@ class ReviewVector:
                 self.vector[wordIndicies[word]] = True
 
     '''
-    Returns the list of words in this review vector.
+    Returns the list of words in this vector.
     totalWordList: ordered list of all words in the corpus.
     '''
     def getWordList(self, totalWordList):

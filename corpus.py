@@ -1,6 +1,6 @@
 import json
 
-from review_vector import ReviewVector
+from text_vector import TextVector
 import text_parsing_utils as tpu
 
 '''
@@ -60,6 +60,6 @@ class TextCorpus:
                 jsonObj = json.loads(line)
                 text = jsonObj['reviewText']
                 rating = jsonObj['overall']
-                vectors.append(ReviewVector(text, rating, self.wordIndices))
+                vectors.append(TextVector(text, rating, self.wordIndices))
 
             return vectors
