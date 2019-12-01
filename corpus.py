@@ -1,7 +1,6 @@
 import json
 import numpy as np
 
-from text_vector import TextVector
 import text_parsing_utils as tpu
 
 '''

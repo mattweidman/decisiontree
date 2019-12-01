@@ -1,10 +1,8 @@
 import math
 import numpy as np
 
-from text_vector import TextVector
-
 '''
-A node of a decision tree that decides between categories based on TextVectors.
+A node of a decision tree that decides between categories based on binary data.
 '''
 class DecisionTreeNode:
     '''
