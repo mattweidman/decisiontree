@@ -19,7 +19,7 @@ class DecisionTreeNode:
         self.right = None
 
     '''
-    Return the index in vectors that should be used to determine which vectors go in which child nodes.
+    Returns the feature index that should be used to determine which vectors go in which child nodes.
     Returns -1 if there is no way to further divide this dataset.
     '''
     def chooseSplitIndex(self):
@@ -76,7 +76,7 @@ class DecisionTreeNode:
         return bestFeature
 
 '''
-Compute the entropy in one child node.
+Computes the entropy in one child node.
 '''
 def _entropyOfOneNode(proportion):
     if proportion == 0:

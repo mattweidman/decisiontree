@@ -8,6 +8,5 @@ from corpus import TextCorpus
 
 if __name__ == "__main__":
     corpus = TextCorpus('Musical_Instruments_5.json')
-
-    print("The first review has the following words:")
-    print(corpus.reviews[0].getWordList(corpus.wordList))
+    print("Words contained in the first vector:")
+    print(corpus.getWordList(0))

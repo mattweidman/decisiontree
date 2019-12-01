@@ -1,4 +1,5 @@
 import json
+import numpy as np
 
 from text_vector import TextVector
 import text_parsing_utils as tpu
@@ -20,22 +21,28 @@ class TextCorpus:
         print("Word index:")
         print(str(len(self.wordIndices)) + " words indexed.")
 
-        print("Creating vectors:")
-        self.reviews = self._createVectors()
-        print(str(len(self.reviews)) + " vectors created.")
+        print("Creating data:")
+        self.inputData, self.outputData = self._createData()
+        print("input data size: " + str(self.inputData.shape))
+        print("output data size: " + str(self.outputData.shape))
 
     '''
     Returns a list of words used in alphabetical order.
     '''
     def _createWordList(self):
         with open(self.fileName, 'r') as f:
-            wordSet = set()
+            wordFrequencies = {}
             for line in f:
                 jsonObj = json.loads(line)
                 words = tpu.splitIntoWords(jsonObj['reviewText'])
-                wordSet.update(words)
+                for word in words:
+                    if word in wordFrequencies:
+                        wordFrequencies[word] += 1
+                    else:
+                        wordFrequencies[word] = 1
             
-            wordList = list(wordSet)
+            wordList = filter(lambda kv: kv[1] > 1, wordFrequencies.items())
+            wordList = list(map(lambda kv: kv[0], wordList))
             wordList.sort()
 
             return wordList
@@ -51,15 +58,45 @@ class TextCorpus:
         return wordDict
 
     '''
-    Returns a list of ReviewVectors generated from file.
+    Returns two numpy matrices: a matrix with a row for each data point and a column for each feature,
+    and a vector with a category for each data point.
     '''
-    def _createVectors(self):
+    def _createData(self):
         with open(self.fileName, 'r') as f:
-            vectors = []
+            # find number of lines in file
+            numLines = sum(1 for line in f)
+            f.seek(0)
+
+            # initialize data with all 0s
+            inputData = np.zeros((numLines, len(self.wordIndices)))
+            outputData = np.zeros((numLines, 1))
+            
+            i = 0
             for line in f:
                 jsonObj = json.loads(line)
                 text = jsonObj['reviewText']
                 rating = jsonObj['overall']
-                vectors.append(TextVector(text, rating, self.wordIndices))
 
-            return vectors
+                # for each word in the review, mark a 1 for that feature in inputData
+                words = tpu.splitIntoWords(text)
+                for word in words:
+                    if word in self.wordIndices:
+                        inputData[i, self.wordIndices[word]] = 1
+
+                # mark the category in outputData
+                outputData[i, 0] = rating
+                
+                i += 1
+
+            return inputData, outputData
+
+    '''
+    Returns the list of words in a vector.
+    index: index of vector to read
+    '''
+    def getWordList(self, index):
+        words = []
+        for i in range(len(self.inputData[index])):
+            if self.inputData[index, i] == 1:
+                words.append(self.wordList[i])
+        return words
