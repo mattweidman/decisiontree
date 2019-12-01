@@ -1,4 +1,5 @@
 import math
+import numpy as np
 
 from text_vector import TextVector
 
@@ -7,73 +8,72 @@ A node of a decision tree that decides between categories based on TextVectors.
 '''
 class DecisionTreeNode:
     '''
-    allData: all data vectors
+    inputData: numpy matrix of input data
+    outputData: numpy vector of output (categorical) data
     indices: indices of vectors in allData that are given to this node
     allCategories: list of all categories
     '''
-    def __init__(self, allData, indices, allCategories):
-        self.allData = allData
+    def __init__(self, inputData, outputData, indices):
+        self.inputData = inputData
+        self.outputData = outputData
         self.indices = indices
-        self.allCategories = allCategories
+        self.allCategories = np.unique(outputData[:,0])
         self.left = None
         self.right = None
 
     '''
     Returns the feature index that should be used to determine which vectors go in which child nodes.
-    Returns -1 if there is no way to further divide this dataset.
+    Returns None if there is no way to further divide this dataset.
     '''
     def chooseSplitIndex(self):
-        bestFeature = -1
-        bestScore = 2.0
+        inputData = self.inputData[self.indices]
+        outputData = self.outputData[self.indices]
+        
+        # featureTrueCounts[c, f] = number of data points with category c and feature f = 1
+        # featureFalseCounts[c, f] = number of data points with category c and feature f = 0
+        featureCountsShape = (len(self.allCategories), inputData.shape[1])
+        featureTrueCounts = np.zeros(featureCountsShape)
+        featureFalseCounts = np.zeros(featureCountsShape)
+        for categoryIndex in range(len(self.allCategories)):
+            vectorsWithCategory = (outputData == self.allCategories[categoryIndex]).astype(int)
+            featureTrueCounts[categoryIndex] = (inputData * vectorsWithCategory).sum(0)
+            featureFalseCounts[categoryIndex] = ((1 - inputData) * vectorsWithCategory).sum(0)
 
-        for feature in range(len(self.allData[0].vector)):
+        # find total number with feature True and False
+        totalWithFeatureTrue = inputData.sum(0)[np.newaxis, :]
+        totalWithFeatureFalse = (1 - inputData).sum(0)[np.newaxis, :]
 
-            # create dictionary mapping category -> # data with feature = T
-            # create dictionary mapping category -> # data with feature = F
-            numWithFeatureTrue = {}
-            numWithFeatureFalse = {}
-            for category in self.allCategories:
-                numWithFeatureTrue[category] = 0
-                numWithFeatureFalse[category] = 0
-            
-            for dataIndex in self.indices:
-                dataPoint = self.allData[dataIndex]
-                if dataPoint.vector[feature]:
-                    numWithFeatureTrue[dataPoint.category] += 1
-                else:
-                    numWithFeatureFalse[dataPoint.category] += 1
+        # Calculate proportions that are needed to calculate entropy.
+        # Some of these values will be nan, and that's okay because they will be replaced with 2 later.
+        old_settings = np.seterr(divide='ignore', invalid='ignore')
+        proportionCategoryTrueInTrueNode = featureTrueCounts / totalWithFeatureTrue
+        proportionCategoryFalseInTrueNode = 1 - proportionCategoryTrueInTrueNode
+        proportionCategoryTrueInFalseNode = featureFalseCounts / totalWithFeatureFalse
+        proportionCategoryFalseInFalseNode = 1 - proportionCategoryTrueInFalseNode
+        np.seterr(**old_settings)
 
-            # find total number with feature True and False
-            totalFeatureTrue = 0
-            totalFeatureFalse = 0
-            for category in self.allCategories:
-                totalFeatureTrue += numWithFeatureTrue[category]
-                totalFeatureFalse += numWithFeatureFalse[category]
+        # calculate entropy of each node
+        nodeEntropy = lambda p: -p * np.log2(p)
+        entropyOfTrueNode = nodeEntropy(proportionCategoryTrueInTrueNode) + nodeEntropy(proportionCategoryFalseInTrueNode)
+        entropyOfFalseNode = nodeEntropy(proportionCategoryTrueInFalseNode) + nodeEntropy(proportionCategoryFalseInFalseNode)
 
-            # if the feature has all of the categories in one side, don't use it
-            if totalFeatureTrue == 0 or totalFeatureFalse == 0:
-                continue
+        # find weights for each node
+        proportionInTrueNode = totalWithFeatureTrue / inputData.shape[0]
+        proportionInFalseNode = 1 - proportionInTrueNode
 
-            # calculate entropy using each category as a binary classifier
-            for category in self.allCategories:
-                proportionCategoryTrueInTrueNode = numWithFeatureTrue[category] / totalFeatureTrue
-                proportionCategoryFalseInTrueNode = 1 - proportionCategoryTrueInTrueNode
-                proportionCategoryTrueInFalseNode = numWithFeatureFalse[category] / totalFeatureFalse
-                proportionCategoryFalseInFalseNode = 1 - proportionCategoryTrueInFalseNode
+        # final entropy for each category and feature
+        avgEntropy = entropyOfTrueNode * proportionInTrueNode + entropyOfFalseNode * proportionInFalseNode
 
-                entropyOfTrueNode = _entropyOfOneNode(proportionCategoryTrueInTrueNode) + _entropyOfOneNode(proportionCategoryFalseInTrueNode)
-                entropyOfFalseNode = _entropyOfOneNode(proportionCategoryTrueInFalseNode) + _entropyOfOneNode(proportionCategoryFalseInFalseNode)
+        # Ensure any features that have data entirely in one node are not selected.
+        # Entropies are constrained to be between 0 and 1, so 2 is an unused value.
+        avgEntropy[(totalWithFeatureTrue == 0).repeat(avgEntropy.shape[0], axis=0)] = 2
+        avgEntropy[(totalWithFeatureFalse == 0).repeat(avgEntropy.shape[0], axis=0)] = 2
+        
+        # return None if everything no splitting is possible
+        if (avgEntropy == 2).all():
+            return None
 
-                proportionInTrueNode = totalFeatureTrue / len(self.indices)
-                proportionInFalseNode = 1 - proportionInTrueNode
-
-                weightedAverageEntropy = proportionInTrueNode * entropyOfTrueNode + proportionInFalseNode * entropyOfFalseNode
-
-                if weightedAverageEntropy < bestScore:
-                    bestScore = weightedAverageEntropy
-                    bestFeature = feature
-
-        return bestFeature
+        return np.unravel_index(avgEntropy.argmin(), avgEntropy.shape)[1]
 
 '''
 Computes the entropy in one child node.
@@ -84,24 +84,43 @@ def _entropyOfOneNode(proportion):
     return - proportion * math.log2(proportion)
 
 if __name__ == "__main__":
-    wordIndices = { "sunny": 0, "hot": 1, "humid": 2, "windy": 3 }
-    allData = [ 
-        TextVector("sunny hot humid windy", True, wordIndices),
-        TextVector("sunny hot humid windy", True, wordIndices),
-        TextVector("sunny hot humid windy", True, wordIndices),
-        TextVector("sunny hot humid windy", False, wordIndices),
-        TextVector("sunny hot humid windy", False, wordIndices),
-        TextVector("sunny hot humid windy", False, wordIndices),
-        TextVector("sunny hot humid", True, wordIndices),
-        TextVector("sunny hot humid", True, wordIndices),
-        TextVector("sunny hot humid", True, wordIndices),
-        TextVector("sunny hot humid", True, wordIndices),
-        TextVector("sunny hot humid", True, wordIndices),
-        TextVector("sunny hot humid", True, wordIndices),
-        TextVector("sunny hot humid", False, wordIndices),
-        TextVector("sunny hot humid", False, wordIndices)
-    ]
-    indices = list(range(len(allData)))
-    allCategories = [True, False]
-    treeNode = DecisionTreeNode(allData, indices, allCategories)
+    inputData = np.array([
+        [0, 0, 0, 0],
+        [1, 1, 1, 1],
+        [1, 1, 1, 1],
+        [1, 1, 1, 1],
+        [1, 1, 1, 1],
+        [1, 1, 1, 1],
+        [1, 1, 1, 1],
+        [1, 1, 1, 0],
+        [1, 1, 1, 0],
+        [1, 1, 1, 0],
+        [1, 1, 1, 0],
+        [1, 1, 1, 0],
+        [1, 1, 1, 0],
+        [1, 1, 1, 0],
+        [1, 1, 1, 0],
+        [0, 0, 0, 0]
+    ])
+    outputData = np.array([
+        [0],
+        [1],
+        [1],
+        [1],
+        [0],
+        [0],
+        [0],
+        [1],
+        [1],
+        [1],
+        [1],
+        [1],
+        [1],
+        [0],
+        [0],
+        [1]
+    ])
+    indices = list(range(1, 15))
+    allCategories = [0, 1]
+    treeNode = DecisionTreeNode(inputData, outputData, indices)
     print(treeNode.chooseSplitIndex())
