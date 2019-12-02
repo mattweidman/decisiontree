@@ -73,6 +73,27 @@ class DecisionTreeNode:
 
         return np.unravel_index(avgEntropy.argmin(), avgEntropy.shape)[1]
 
+    '''
+    Populates the two child nodes by splitting the data in this node into two at the right feature index.
+    recursive: if true, recursively splits children as well
+    '''
+    def split(self, recursive=True):
+        splitIndex = self.chooseSplitIndex()
+
+        if splitIndex == None:
+            return
+
+        splitVector = self.inputData[:, splitIndex]
+        leftIndices = np.intersect1d(np.argwhere(splitVector), self.indices)
+        rightIndices = np.intersect1d(np.argwhere(1 - splitVector), self.indices)
+
+        self.left = DecisionTreeNode(self.inputData, self.outputData, leftIndices)
+        self.right = DecisionTreeNode(self.inputData, self.outputData, rightIndices)
+
+        if recursive:
+            self.left.split()
+            self.right.split()
+
 '''
 Computes the entropy in one child node.
 '''
@@ -118,7 +139,7 @@ if __name__ == "__main__":
         [0],
         [1]
     ])
-    indices = list(range(1, 15))
+    indices = np.array(list(range(1, 15)))
     allCategories = [0, 1]
     treeNode = DecisionTreeNode(inputData, outputData, indices)
-    print(treeNode.chooseSplitIndex())
+    treeNode.split()
