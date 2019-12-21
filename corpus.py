@@ -127,9 +127,9 @@ class TextCorpus:
 
     '''
     Returns a new decision tree from this data.
-    maxDepth: maximum depth of decision tree
+    maxDepth: maximum depth of decision tree. If None, stops when data runs out.
     '''
-    def getDecisionTree(self, maxDepth):
+    def getDecisionTree(self, maxDepth=None):
         indices = np.array(range(len(self.inputData)))
         tree = dt.DecisionTreeNode(self.inputData, self.outputData, indices)
         tree.split(maxDepth)

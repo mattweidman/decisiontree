@@ -78,10 +78,10 @@ class DecisionTreeNode:
 
     '''
     Populates the two child nodes by splitting the data in this node into two at the right feature index.
-    maxDepth: maximum number of times the tree can be split
+    maxDepth: maximum number of times the tree can be split. If None, stops when data runs out.
     '''
-    def split(self, maxDepth=1):
-        if maxDepth <= 0:
+    def split(self, maxDepth=None):
+        if maxDepth is not None and maxDepth <= 0:
             self.splitIndex = None
             return
 
@@ -97,8 +97,9 @@ class DecisionTreeNode:
         self.left = DecisionTreeNode(self.inputData, self.outputData, leftIndices)
         self.right = DecisionTreeNode(self.inputData, self.outputData, rightIndices)
 
-        self.left.split(maxDepth - 1)
-        self.right.split(maxDepth - 1)
+        nextDepth = None if maxDepth is None else maxDepth - 1
+        self.left.split(nextDepth)
+        self.right.split(nextDepth)
 
     '''
     Convert decision tree into a human-readable string consisting of branched 
