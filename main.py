@@ -7,7 +7,7 @@
 from corpus import TextCorpus
 
 if __name__ == "__main__":
-    corpus = TextCorpus('Musical_Instruments_5.json', 0, 1000)
+    corpus = TextCorpus('Musical_Instruments_5.json', 10, 20, True)
     tree = corpus.getDecisionTree()
     output = tree.toFlattenedIfString(corpus.wordList)
     with open("output.txt", "w") as f:

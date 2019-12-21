@@ -13,14 +13,17 @@ class TextCorpus:
     fileName: name of file to read.
     startIndex: first line in the corpus to read from
     endIndex: one more than the last line in the corpus to read from
+    limitWordIndex: If true, creates a word index over everything in the corpus,
+    ignoring start and end index. If false, only takes words from lines between
+    start and end index.
     '''
-    def __init__(self, fileName, startIndex=None, endIndex=None):
+    def __init__(self, fileName, startIndex=None, endIndex=None, limitWordIndex=False):
         self.fileName = fileName
         self.startIndex = startIndex
         self.endIndex = endIndex
 
         print("Creating word index...")
-        self.wordList = self._createWordList()
+        self.wordList = self._createWordList(limitWordIndex)
         self.wordIndices = self._createWordIndices()
         print("Word index:")
         print(str(len(self.wordIndices)) + " words indexed.")
@@ -32,11 +35,23 @@ class TextCorpus:
 
     '''
     Returns a list of words used in alphabetical order.
+    limit: If true, creates a word list over everything in the corpus,
+    ignoring start and end index. If false, only takes words from lines between
+    start and end index.
     '''
-    def _createWordList(self):
+    def _createWordList(self, limit=False):
         with open(self.fileName, 'r') as f:
+
             wordFrequencies = {}
+            i = 0
             for line in f:
+                if limit and self.startIndex is not None and i < self.startIndex:
+                    i += 1
+                    continue
+
+                if limit and self.endIndex is not None and i >= self.endIndex:
+                    break
+
                 jsonObj = json.loads(line)
                 words = tpu.splitIntoWords(jsonObj['reviewText'])
                 for word in words:
@@ -44,6 +59,8 @@ class TextCorpus:
                         wordFrequencies[word] += 1
                     else:
                         wordFrequencies[word] = 1
+                
+                i += 1
             
             wordList = filter(lambda kv: kv[1] > 1, wordFrequencies.items())
             wordList = list(map(lambda kv: kv[0], wordList))
