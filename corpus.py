@@ -68,7 +68,18 @@ class TextCorpus:
     def _createData(self):
         with open(self.fileName, 'r') as f:
             # find number of lines in file
-            numLines = sum(1 for line in f)
+            if self.endIndex is not None:
+                if self.startIndex is not None:
+                    numLines = self.endIndex - self.startIndex
+                else:
+                    numLines = self.endIndex
+            else:
+                totalLines = sum(1 for line in f)
+                if self.startIndex is not None:
+                    numLines = totalLines - self.startIndex
+                else:
+                    numLines = totalLines
+
             f.seek(0)
 
             # initialize data with all 0s
@@ -77,23 +88,27 @@ class TextCorpus:
             
             i = 0
             for line in f:
-                if self.startIndex != None and i < self.startIndex:
+                if self.startIndex is not None and i < self.startIndex:
+                    i += 1
                     continue
-                if self.endIndex != None and i >= self.endIndex:
+
+                if self.endIndex is not None and i >= self.endIndex:
                     break
 
+                dataIndex = i if self.startIndex is None else i - self.startIndex
+
                 jsonObj = json.loads(line)
-                text = jsonObj['reviewText']
-                rating = jsonObj['overall']
 
                 # for each word in the review, mark a 1 for that feature in inputData
+                text = jsonObj['reviewText']
                 words = tpu.splitIntoWords(text)
                 for word in words:
                     if word in self.wordIndices:
-                        inputData[i, self.wordIndices[word]] = 1
+                        inputData[dataIndex, self.wordIndices[word]] = 1
 
                 # mark the category in outputData
-                outputData[i, 0] = rating
+                rating = jsonObj['overall']
+                outputData[dataIndex, 0] = rating
                 
                 i += 1
 

@@ -20,13 +20,6 @@ class DecisionTreeNode:
         self.right = None
 
     '''
-    Find the most frequent output in the data set.
-    '''
-    def _mostFrequentOutput(self):
-        uniques, counts = np.unique(self.outputData[self.indices], return_counts=True)
-        return uniques[np.argmax(counts)]
-
-    '''
     Returns the feature index that should be used to determine which vectors go in which child nodes.
     Returns None if there is no way to further divide this dataset.
     '''
@@ -73,6 +66,9 @@ class DecisionTreeNode:
         # Entropies are constrained to be between 0 and 1, so 2 is an unused value.
         avgEntropy[(totalWithFeatureTrue == 0).repeat(avgEntropy.shape[0], axis=0)] = 2
         avgEntropy[(totalWithFeatureFalse == 0).repeat(avgEntropy.shape[0], axis=0)] = 2
+
+        # get rid of nans
+        avgEntropy[np.isnan(avgEntropy)] = 2
         
         # return None if everything no splitting is possible
         if (avgEntropy == 2).all():
@@ -91,7 +87,7 @@ class DecisionTreeNode:
 
         self.splitIndex = self.chooseSplitIndex()
 
-        if self.splitIndex == None:
+        if self.splitIndex is None:
             return
 
         splitVector = self.inputData[:, self.splitIndex]
@@ -111,16 +107,22 @@ class DecisionTreeNode:
     tabs: number of tabs to prepend to each line created in the function
     '''
     def toString(self, wordList, tabs=0):
-        if self.splitIndex == None:
-            return ("\t" * tabs) + "return " + str(self._mostFrequentOutput()) + "\n"
+        tabStr = " " * (4 * tabs)
+
+        if self.splitIndex is None:
+            uniques, counts = np.unique(self.outputData[self.indices], return_counts=True)
+            mostFrequent = uniques[np.argmax(counts)]
+            return tabStr + "return " + str(mostFrequent) + "\n" \
+                + tabStr + "uniques: " + str(uniques) + "\n" \
+                + tabStr + "counts: " + str(counts) + "\n"
 
         leftString = self.left.toString(wordList, tabs + 1)
         rightString = self.right.toString(wordList, tabs + 1)
         wordChecked = wordList[self.splitIndex]
 
-        return ("\t" * tabs) + "if contains \"" + wordChecked + "\":\n" \
+        return tabStr + "if contains \"" + wordChecked + "\":\n" \
             + leftString \
-            + ("\t" * tabs) + "else:\n" \
+            + tabStr + "else:\n" \
             + rightString
 
 '''
