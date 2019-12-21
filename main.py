@@ -7,6 +7,6 @@
 from corpus import TextCorpus
 
 if __name__ == "__main__":
-    corpus = TextCorpus('Musical_Instruments_5.json')
-    print("Words contained in the first vector:")
-    print(corpus.getWordList(0))
+    corpus = TextCorpus('Musical_Instruments_5.json', 0, 1000)
+    tree = corpus.getDecisionTree(5)
+    print(tree.toString(corpus.wordList))

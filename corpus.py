@@ -1,6 +1,7 @@
 import json
 import numpy as np
 
+import decision_tree as dt
 import text_parsing_utils as tpu
 
 '''
@@ -10,9 +11,13 @@ class TextCorpus:
     '''
     Creates a text corpus from a file.
     fileName: name of file to read.
+    startIndex: first line in the corpus to read from
+    endIndex: one more than the last line in the corpus to read from
     '''
-    def __init__(self, fileName):
+    def __init__(self, fileName, startIndex=None, endIndex=None):
         self.fileName = fileName
+        self.startIndex = startIndex
+        self.endIndex = endIndex
 
         print("Creating word index...")
         self.wordList = self._createWordList()
@@ -72,6 +77,11 @@ class TextCorpus:
             
             i = 0
             for line in f:
+                if self.startIndex != None and i < self.startIndex:
+                    continue
+                if self.endIndex != None and i >= self.endIndex:
+                    break
+
                 jsonObj = json.loads(line)
                 text = jsonObj['reviewText']
                 rating = jsonObj['overall']
@@ -99,3 +109,13 @@ class TextCorpus:
             if self.inputData[index, i] == 1:
                 words.append(self.wordList[i])
         return words
+
+    '''
+    Returns a new decision tree from this data.
+    maxDepth: maximum depth of decision tree
+    '''
+    def getDecisionTree(self, maxDepth):
+        indices = np.array(range(len(self.inputData)))
+        tree = dt.DecisionTreeNode(self.inputData, self.outputData, indices)
+        tree.split(maxDepth)
+        return tree
