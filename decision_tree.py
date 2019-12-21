@@ -132,36 +132,28 @@ class DecisionTreeNode:
     wordList: list of words, in order; used to map index in vector to word
     '''
     def toFlattenedIfString(self, wordList):
-        conditionsMap = {}
-        self._getConditionsMap(conditionsMap)
-
-        keys = list(conditionsMap.keys())
-        keys.sort()
+        leafNodeList = self._getLeafNodeList()
 
         s = ""
-        for outputValue in keys:
-            for leafNodeInfo in conditionsMap[outputValue]:
-                s += leafNodeInfo.toString(wordList)
+        for leafNodeInfo in leafNodeList:
+            s += leafNodeInfo.toString(wordList)
         return s
 
     '''
-    Creates a map of output value -> list of LeafNodeInfo objects that yield that output.
-    conditionsMap: conditionsMap created so far
+    Creates list of LeafNodeInfo objects from this decision tree.
     splitListsplitList: list of split indices in all ancestors of this node
     wasLeftList: list of booleans where wasLeftList[i] being true means splitList[i]
-    split to the left
+    was split to the left
     '''
-    def _getConditionsMap(self, conditionsMap, splitList=[], wasLeftList=[]):
+    def _getLeafNodeList(self, splitList=[], wasLeftList=[]):
         if self.splitIndex is None:
             leafNodeInfo = LeafNodeInfo(self, splitList, wasLeftList)
-            if leafNodeInfo.mostFrequent in conditionsMap:
-                conditionsMap[leafNodeInfo.mostFrequent].append(leafNodeInfo)
-            else:
-                conditionsMap[leafNodeInfo.mostFrequent] = [leafNodeInfo]
+            return [leafNodeInfo]
         else:
             childSplitList = splitList + [self.splitIndex]
-            self.left._getConditionsMap(conditionsMap, childSplitList, wasLeftList + [True])
-            self.right._getConditionsMap(conditionsMap, childSplitList, wasLeftList + [False])
+            leftList = self.left._getLeafNodeList(childSplitList, wasLeftList + [True])
+            rightList = self.right._getLeafNodeList(childSplitList, wasLeftList + [False])
+            return leftList + rightList
 
 '''
 Contains information that you would use in the leaf node of a decision tree.
