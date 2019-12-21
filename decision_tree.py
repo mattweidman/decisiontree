@@ -101,12 +101,12 @@ class DecisionTreeNode:
         self.right.split(maxDepth - 1)
 
     '''
-    Convert decision tree into a long, human-readable string for debugging.
-    split() should be called before this is called.
+    Convert decision tree into a human-readable string consisting of branched 
+    if-statements. split() should be called before this is called.
     wordList: list of words, in order; used to map index in vector to word
     tabs: number of tabs to prepend to each line created in the function
     '''
-    def toString(self, wordList, tabs=0):
+    def toBranchedIfString(self, wordList, tabs=0):
         tabStr = " " * (4 * tabs)
 
         if self.splitIndex is None:
@@ -116,14 +116,89 @@ class DecisionTreeNode:
                 + tabStr + "uniques: " + str(uniques) + "\n" \
                 + tabStr + "counts: " + str(counts) + "\n"
 
-        leftString = self.left.toString(wordList, tabs + 1)
-        rightString = self.right.toString(wordList, tabs + 1)
+        leftString = self.left.toBranchedIfString(wordList, tabs + 1)
+        rightString = self.right.toBranchedIfString(wordList, tabs + 1)
         wordChecked = wordList[self.splitIndex]
 
         return tabStr + "if contains \"" + wordChecked + "\":\n" \
             + leftString \
             + tabStr + "else:\n" \
             + rightString
+
+    '''
+    Convert decision tree into human-readable string that shows the set of
+    conditions that would yield each output in an ordered fashion. split()
+    should be called before this is called.
+    wordList: list of words, in order; used to map index in vector to word
+    '''
+    def toFlattenedIfString(self, wordList):
+        conditionsMap = {}
+        self._getConditionsMap(conditionsMap)
+
+        keys = list(conditionsMap.keys())
+        keys.sort()
+
+        s = ""
+        for outputValue in keys:
+            for leafNodeInfo in conditionsMap[outputValue]:
+                s += leafNodeInfo.toString(wordList)
+        return s
+
+    '''
+    Creates a map of output value -> list of LeafNodeInfo objects that yield that output.
+    conditionsMap: conditionsMap created so far
+    splitListsplitList: list of split indices in all ancestors of this node
+    wasLeftList: list of booleans where wasLeftList[i] being true means splitList[i]
+    split to the left
+    '''
+    def _getConditionsMap(self, conditionsMap, splitList=[], wasLeftList=[]):
+        if self.splitIndex is None:
+            leafNodeInfo = LeafNodeInfo(self, splitList, wasLeftList)
+            if leafNodeInfo.mostFrequent in conditionsMap:
+                conditionsMap[leafNodeInfo.mostFrequent].append(leafNodeInfo)
+            else:
+                conditionsMap[leafNodeInfo.mostFrequent] = [leafNodeInfo]
+        else:
+            childSplitList = splitList + [self.splitIndex]
+            self.left._getConditionsMap(conditionsMap, childSplitList, wasLeftList + [True])
+            self.right._getConditionsMap(conditionsMap, childSplitList, wasLeftList + [False])
+
+'''
+Contains information that you would use in the leaf node of a decision tree.
+'''
+class LeafNodeInfo:
+
+    '''
+    Creates a new LeafNodeInfo.
+    treeNode: decision tree node
+    splitListsplitList: list of split indices in all ancestors of this node
+    wasLeftList: list of booleans where wasLeftList[i] being true means splitList[i]
+    split to the left
+    '''
+    def __init__(self, treeNode, splitList, wasLeftList):
+        self.uniques, self.counts = np.unique(treeNode.outputData[treeNode.indices], return_counts=True)
+        self.mostFrequent = self.uniques[np.argmax(self.counts)]
+        self.splitList = splitList
+        self.wasLeftList = wasLeftList
+
+    '''
+    Convert to a string showing a condition that would yield an output value.
+    wordList: list of words, in order; used to map index in vector to word
+    '''
+    def toString(self, wordList):
+        containsWordList = []
+        notContainedWordList = []
+        for splitIndex, wasLeft in zip(self.splitList, self.wasLeftList):
+            if wasLeft:
+                containsWordList.append(wordList[splitIndex])
+            else:
+                notContainedWordList.append(wordList[splitIndex])
+
+        return "if contains " + str(containsWordList) + "\n" \
+            + "and does not contain " + str(notContainedWordList) + ":\n" \
+            + "    return " + str(self.mostFrequent) + "\n" \
+            + "    uniques: " + str(self.uniques) + "\n" \
+            + "    counts: " + str(self.counts) + "\n"
 
 '''
 Computes the entropy in one child node.
